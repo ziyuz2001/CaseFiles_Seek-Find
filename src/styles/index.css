@@ -1,0 +1,40 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Typewriter cursor blink */
+@keyframes tw-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.tw-cursor {
+  display: inline-block;
+  width: 1.5px;
+  height: 0.9em;
+  background: currentColor;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: tw-blink 0.65s step-end infinite;
+}
+
+/* Detective newspaper background — aged newsprint yellow */
+.detective-bg {
+  background-color: #ddd4b0;
+  background-image:
+    radial-gradient(ellipse at 10% 90%, rgba(60,40,5,0.08) 0%, transparent 40%),
+    radial-gradient(ellipse at 90% 10%, rgba(50,32,5,0.06) 0%, transparent 38%),
+    repeating-linear-gradient(
+      0deg,
+      transparent, transparent 3px,
+      rgba(30,18,2,0.015) 3px, rgba(30,18,2,0.015) 4px
+    );
+}
+
+/* Leaflet container */
+.leaflet-container {
+  background: #cfc8a8 !important;
+  font-family: inherit;
+}
+.leaflet-tile-pane {
+  background: #cfc8a8;
+}
