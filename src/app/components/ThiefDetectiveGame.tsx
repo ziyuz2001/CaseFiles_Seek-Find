@@ -1,16 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Lightbulb, Search, Trophy, ArrowRight, RotateCcw, Globe,
-  MapPin, CheckCircle, XCircle, Lock, Unlock, Star, UserX, Zap,
-  Clock, AlertTriangle, BookOpen, Map, ChevronRight, Flame
+  Search, Trophy,
+  MapPin, Lock,
+  BookOpen, ChevronRight
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { GeoGuessrMap } from "./GeoGuessrMap";
 import { getDisplayName } from "./WorldMap";
 import { IntroSequence } from "./IntroSequence";
 import { playSoundEffect } from "./soundUtils";
-import { fetchPexelsImage } from "../services/pexelsService";
 import confetti from "canvas-confetti";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -388,6 +387,29 @@ const LEVELS: Level[] = [
   },
 ];
 
+// ─── Suspects ─────────────────────────────────────────────────────────────────
+
+const SUSPECTS: Record<number, { alias: string; height: string; build: string; hair: string; method: string; lastSeen: string }> = {
+  1:  { alias: "The Phantom",      height: "183 cm", build: "Athletic",    hair: "Dark, slicked back", method: "Steals paintings, leaves a single white rose",          lastSeen: "72 hrs ago" },
+  2:  { alias: "Kitsune",          height: "171 cm", build: "Lean",        hair: "Black, cropped",     method: "Bypasses laser grids, never triggers alarms",           lastSeen: "48 hrs ago" },
+  3:  { alias: "Il Fantasma",      height: "178 cm", build: "Medium",      hair: "Silver-streaked",    method: "Forges documents, impersonates curators",               lastSeen: "60 hrs ago" },
+  4:  { alias: "The Architect",    height: "190 cm", build: "Tall, broad", hair: "Grey, cropped short",method: "Memorizes blueprints, uses structural blind spots",      lastSeen: "36 hrs ago" },
+  5:  { alias: "Cipher",           height: "165 cm", build: "Slight",      hair: "Auburn, wavy",       method: "Cracks vault codes without tools, leaves no trace",      lastSeen: "55 hrs ago" },
+  6:  { alias: "The Chameleon",    height: "175 cm", build: "Average",     hair: "Changes frequently", method: "Master of disguise, 12 known identities",               lastSeen: "40 hrs ago" },
+  7:  { alias: "Lady Vex",         height: "168 cm", build: "Lean",        hair: "Platinum blonde",    method: "Social engineering, seduces museum staff",              lastSeen: "30 hrs ago" },
+  8:  { alias: "The Clockmaker",   height: "172 cm", build: "Stocky",      hair: "Brown, thinning",    method: "Times heists to the second, obsessed with precision",   lastSeen: "44 hrs ago" },
+  9:  { alias: "Mirage",           height: "180 cm", build: "Athletic",    hair: "Natural black",      method: "Uses holographic decoys, never seen directly",          lastSeen: "28 hrs ago" },
+  10: { alias: "The Professor",    height: "169 cm", build: "Slight",      hair: "White, disheveled",  method: "Exploits academic access, steals research artifacts",   lastSeen: "52 hrs ago" },
+  11: { alias: "Scorpio",          height: "185 cm", build: "Muscular",    hair: "Shaved",             method: "Brute-force entry, disables security physically",       lastSeen: "18 hrs ago" },
+  12: { alias: "The Weaver",       height: "162 cm", build: "Petite",      hair: "Long, dark braided", method: "Plants accomplices months in advance",                  lastSeen: "66 hrs ago" },
+  13: { alias: "Vandal X",         height: "177 cm", build: "Medium",      hair: "Dyed red",           method: "Steals and replaces with perfect fakes",                lastSeen: "22 hrs ago" },
+  14: { alias: "The Ghost",        height: "174 cm", build: "Lean",        hair: "Unknown",            method: "Never photographed, identity unknown to Interpol",      lastSeen: "Unknown" },
+  15: { alias: "Madam Zero",       height: "170 cm", build: "Slender",     hair: "Black, severe cut",  method: "Corrupts guards with money, vanishes before discovery", lastSeen: "34 hrs ago" },
+  16: { alias: "The Navigator",    height: "182 cm", build: "Athletic",    hair: "Sandy brown",        method: "Uses transport networks, moves cargo through ports",     lastSeen: "20 hrs ago" },
+  17: { alias: "Eclipse",          height: "176 cm", build: "Medium",      hair: "Natural grey",       method: "Operates only at night, light-sensitive equipment",     lastSeen: "12 hrs ago" },
+  18: { alias: "The Sovereign",    height: "188 cm", build: "Commanding",  hair: "Dark, long",         method: "Bribes officials, operates through shell organizations", lastSeen: "8 hrs ago"  },
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DIFFICULTY_CONFIG = {
@@ -410,12 +432,6 @@ const DIFFICULTY_CONFIG = {
     maxClues: 1,
   },
 };
-
-function getDifficulty(levelIndex: number): Difficulty {
-  if (levelIndex < 3) return "easy";
-  if (levelIndex < 6) return "medium";
-  return "hard";
-}
 
 function calcPoints(cluesUsed: number): number {
   if (cluesUsed === 0) return 30;
@@ -458,7 +474,7 @@ function DifficultyBadge({ d, size = "sm" }: { d: Difficulty; size?: "sm" | "md"
   return (
     <span style={{
       fontFamily: "'Courier New', Courier, monospace",
-      fontSize: size === 'md' ? 10 : 9,
+      fontSize: size === 'md' ? 16 : 13,
       fontWeight: 900,
       letterSpacing: '0.18em',
       color: c,
@@ -483,7 +499,7 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
         return (
           <span key={i} style={{
             fontFamily: "'Courier New', Courier, monospace",
-            fontSize: 13,
+            fontSize: 16,
             lineHeight: 1,
             color: done ? '#1a0e04' : active ? 'rgba(26,14,4,0.55)' : 'rgba(26,14,4,0.2)',
             transition: 'color 0.4s',
@@ -497,30 +513,49 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
 }
 
 // Detective ink-box countdown timer — golden on dark wood
-function CountdownTimer({ timeLeft, total, diff }: { timeLeft: number; total: number; diff: Difficulty }) {
-  const isUrgent = timeLeft <= 10;
-  const isCritical = timeLeft <= 5;
+function CountdownTimer({ timeLeft, total }: { timeLeft: number; total: number }) {
   const pct = timeLeft / total;
-
-  const borderColor = isCritical ? 'rgba(220,60,40,0.9)' : isUrgent ? 'rgba(220,160,30,0.85)' : 'rgba(200,168,76,0.55)';
-  const numColor = isCritical ? '#ff6b5b' : isUrgent ? '#f0c040' : '#e8d5a0';
-  const labelColor = isCritical ? 'rgba(255,120,100,0.7)' : isUrgent ? 'rgba(230,185,60,0.7)' : 'rgba(200,168,76,0.6)';
+  const barColor = pct > 0.6 ? '#22c55e' : pct > 0.3 ? '#f59e0b' : '#ef4444';
+  const shouldPulse = pct < 0.15;
 
   return (
     <div style={{
-      border: `1.5px solid ${borderColor}`,
-      padding: '4px 16px 5px',
-      textAlign: 'center',
-      minWidth: 64,
-      position: 'relative',
-      background: 'rgba(0,0,0,0.18)',
-      borderRadius: 2,
-      animation: isCritical ? 'tw-blink 0.5s step-end infinite' : 'none',
+      display: 'flex', alignItems: 'center', width: '100%', maxWidth: 500,
+      margin: '0 auto', padding: '6px 16px',
     }}>
-      <div style={{ fontSize: 7, letterSpacing: '0.22em', color: labelColor, fontFamily: "'Courier New', monospace", marginBottom: 1 }}>TIME</div>
-      <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1, color: numColor, fontFamily: "'Oswald', sans-serif", letterSpacing: '0.06em' }}>{String(timeLeft).padStart(2, '0')}</div>
-      <div style={{ fontSize: 7, letterSpacing: '0.18em', color: labelColor, fontFamily: "'Courier New', monospace", marginTop: 1 }}>SEC</div>
-      <div style={{ position: 'absolute', bottom: 0, left: 0, height: 2, background: borderColor, width: `${pct * 100}%`, transition: 'width 0.9s linear', borderRadius: '0 0 0 2px' }} />
+      {/* Left label */}
+      <span style={{
+        fontFamily: "'Oswald', sans-serif", fontSize: 18, fontWeight: 700,
+        color: '#c8a882', letterSpacing: '0.15em', marginRight: 12,
+        flexShrink: 0, lineHeight: 1,
+      }}>TIME</span>
+
+      {/* Center bar */}
+      <div style={{
+        flex: 1, height: 12, borderRadius: 6,
+        background: 'rgba(0,0,0,0.4)', overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%',
+          width: `${pct * 100}%`,
+          background: barColor,
+          borderRadius: 6,
+          transition: 'width 1s linear, background-color 0.5s ease',
+          animation: shouldPulse ? 'timer-bar-pulse 0.5s ease-in-out infinite' : 'none',
+        }} />
+      </div>
+
+      {/* Right number + SEC */}
+      <div style={{ marginLeft: 12, display: 'flex', alignItems: 'baseline', flexShrink: 0 }}>
+        <span style={{
+          fontFamily: "'Oswald', sans-serif", fontSize: 25, fontWeight: 700,
+          color: '#f0e8d4', lineHeight: 1,
+        }}>{String(timeLeft).padStart(2, '0')}</span>
+        <span style={{
+          fontSize: 14, color: '#c8a882', letterSpacing: '0.1em',
+          marginLeft: 4, fontFamily: "'Oswald', sans-serif",
+        }}>SEC</span>
+      </div>
     </div>
   );
 }
@@ -556,7 +591,6 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
         position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 16, background: 'rgba(5,3,1,0.94)', backdropFilter: 'blur(14px)', zIndex: 3000,
       }}
-      onClick={onContinue}
     >
       <motion.div
         initial={{ opacity: 0, y: -80, scaleY: 0.05 }}
@@ -617,7 +651,7 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
               borderRadius: 2,
               padding: '3px 8px',
               fontFamily: "'Courier New', Courier, monospace",
-              fontSize: 10, fontWeight: 900, letterSpacing: '0.18em',
+              fontSize: 16, fontWeight: 800, letterSpacing: '0.18em',
               color: isCorrect ? 'rgba(20,100,30,0.9)' : 'rgba(160,20,20,0.9)',
               background: isCorrect ? 'rgba(20,100,30,0.07)' : 'rgba(160,20,20,0.07)',
               zIndex: 10, userSelect: 'none',
@@ -653,7 +687,7 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
           <div style={{
             display: 'inline-block',
             fontFamily: "'Courier New', Courier, monospace",
-            fontSize: 12, letterSpacing: '0.16em', fontWeight: 700,
+            fontSize: 23, letterSpacing: '0.16em', fontWeight: 800,
             color: isCorrect ? '#1a5c10' : '#7a1010',
             borderTop: `1.5px solid ${isCorrect ? 'rgba(20,100,20,0.5)' : 'rgba(120,10,10,0.5)'}`,
             borderBottom: `1.5px solid ${isCorrect ? 'rgba(20,100,20,0.5)' : 'rgba(120,10,10,0.5)'}`,
@@ -684,16 +718,16 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-                <span style={{ fontSize: 14 }}>{icon}</span>
+                <span style={{ fontSize: 18 }}>{icon}</span>
                 <span style={{
                   fontFamily: "'Courier New', Courier, monospace",
-                  fontSize: 10, fontWeight: 900, letterSpacing: '0.22em',
+                  fontSize: 13, fontWeight: 900, letterSpacing: '0.22em',
                   color, textTransform: 'uppercase',
                 }}>{label}</span>
               </div>
               <p style={{
                 fontFamily: "'Courier New', Courier, monospace",
-                fontSize: 14, lineHeight: 1.7, color: '#1a0e04', margin: 0, letterSpacing: '0.01em',
+                fontSize: 18, lineHeight: 1.7, color: '#1a0e04', margin: 0, letterSpacing: '0.01em',
               }}>{text}</p>
             </motion.div>
           ))}
@@ -717,7 +751,7 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
               <span style={{ fontSize: 14 }}>🤯</span>
               <span style={{
                 fontFamily: "'Courier New', Courier, monospace",
-                fontSize: 10, fontWeight: 900, letterSpacing: '0.22em',
+                fontSize: 13, fontWeight: 900, letterSpacing: '0.22em',
                 color: '#5c3208', textTransform: 'uppercase',
               }}>FIELD NOTE</span>
             </div>
@@ -735,7 +769,7 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
             whileHover={{ scale: 1.02, filter: 'brightness(1.12)' }}
             whileTap={{ scale: 0.97 }}
             style={{
-              width: '100%', padding: '11px',
+              width: '100%', padding: '12px 28px',
               borderRadius: 2,
               background: 'linear-gradient(180deg, #3b1d07 0%, #251005 100%)',
               color: '#e8d5a0',
@@ -744,7 +778,7 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               fontFamily: "'Oswald', sans-serif",
-              fontWeight: 700, fontSize: 13, letterSpacing: '0.14em',
+              fontWeight: 700, fontSize: 17, letterSpacing: '0.14em',
             }}
           >
             {isLast
@@ -753,6 +787,170 @@ function CultureCard({ level, resolvedImageUrl, isCorrect, points, onContinue, i
           </motion.button>
         </div>
       </motion.div>
+    </motion.div>
+  );
+}
+
+// ─── Suspect Briefing Modal ───────────────────────────────────────────────────
+
+function SuspectBriefing({ suspect, onBegin, onBack }: {
+  suspect: { alias: string; height: string; build: string; hair: string; method: string; lastSeen: string };
+  onBegin: () => void;
+  onBack: () => void;
+}) {
+  const fields: [string, string][] = [
+    ["ALIAS",      suspect.alias],
+    ["HEIGHT",     suspect.height],
+    ["BUILD",      suspect.build],
+    ["HAIR",       suspect.hair],
+    ["METHOD",     suspect.method],
+    ["LAST SEEN",  suspect.lastSeen],
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.3 }}
+      style={{
+        position: 'fixed', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 16,
+        background: 'rgba(0,0,0,0.85)',
+        zIndex: 4000,
+      }}
+    >
+      <div style={{
+        width: '100%', maxWidth: 420,
+        background: '#f0e8d8',
+        border: '1px solid rgba(80,40,10,0.4)',
+        borderRadius: 2,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+        overflow: 'hidden',
+        fontFamily: "'Courier New', Courier, monospace",
+      }}>
+        {/* Header bar */}
+        <div style={{
+          background: '#2a1a06',
+          padding: '10px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <span style={{ fontSize: 16, letterSpacing: '0.28em', color: 'rgba(220,185,100,0.85)', fontWeight: 700 }}>
+            INTERPOL — SUSPECT FILE
+          </span>
+          <span style={{ fontSize: 13, color: 'rgba(220,185,100,0.4)', letterSpacing: '0.15em' }}>
+            EYES ONLY
+          </span>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '18px 20px 14px', position: 'relative' }}>
+          {/* CLASSIFIED stamp */}
+          <div style={{
+            position: 'absolute', top: 18, right: 16,
+            transform: 'rotate(6deg)',
+            border: '2.5px solid rgba(160,20,20,0.75)',
+            borderRadius: 2,
+            padding: '3px 9px',
+            fontFamily: "'Courier New', Courier, monospace",
+            fontSize: 14, fontWeight: 900, letterSpacing: '0.2em',
+            color: 'rgba(160,20,20,0.75)',
+            background: 'rgba(160,20,20,0.04)',
+            userSelect: 'none',
+            pointerEvents: 'none',
+          }}>
+            CLASSIFIED
+          </div>
+
+          {/* Fields */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 16 }}>
+            {fields.map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', gap: 0, alignItems: 'flex-start' }}>
+                <span style={{
+                  fontSize: 13, fontWeight: 700, letterSpacing: '0.1em',
+                  color: 'rgba(40,20,5,0.55)', minWidth: 88, flexShrink: 0,
+                }}>
+                  {label}:
+                </span>
+                <span style={{
+                  fontSize: 14, color: '#1a0e04', letterSpacing: '0.03em', lineHeight: 1.45,
+                }}>
+                  {value}
+                </span>
+              </div>
+            ))}
+            {/* Threat row */}
+            <div style={{ display: 'flex', gap: 0, alignItems: 'center' }}>
+              <span style={{
+                fontSize: 13, fontWeight: 700, letterSpacing: '0.1em',
+                color: 'rgba(40,20,5,0.55)', minWidth: 88, flexShrink: 0,
+              }}>
+                THREAT:
+              </span>
+              <span style={{ fontSize: 14, color: '#1a0e04', letterSpacing: '0.1em' }}>
+                ■■■■■■■■ <span style={{ fontSize: 16, fontWeight: 800, color: '#8b1a0a', letterSpacing: '0.12em' }}>CRITICAL</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ borderTop: '1px solid rgba(40,20,5,0.2)', marginBottom: 12 }} />
+
+          {/* Mission note */}
+          <p style={{
+            fontFamily: 'Georgia, serif', fontStyle: 'italic',
+            fontSize: 14, color: 'rgba(40,20,5,0.6)', lineHeight: 1.7, margin: '0 0 16px',
+          }}>
+            Your mission: track this suspect's last known location. Study the evidence carefully.
+          </p>
+
+          {/* Timer note */}
+          <div style={{
+            textAlign: 'center', marginBottom: 12,
+            fontSize: 13, color: 'rgba(40,20,5,0.38)',
+            fontFamily: "'Courier New', Courier, monospace",
+            letterSpacing: '0.1em',
+          }}>
+            Timer begins when you start
+          </div>
+
+          {/* Bottom action row */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={onBack}
+              style={{
+                padding: '10px 20px',
+                background: 'transparent',
+                border: '1px solid rgba(138,106,74,0.4)',
+                color: '#8a6a4a',
+                fontFamily: "'Oswald', sans-serif",
+                fontSize: 15, fontWeight: 600, letterSpacing: '0.1em',
+                cursor: 'pointer', borderRadius: 2, flexShrink: 0,
+              }}
+            >
+              ← ABORT MISSION
+            </button>
+            <motion.button
+              onClick={onBegin}
+              whileHover={{ scale: 1.02, filter: 'brightness(1.12)' }}
+              whileTap={{ scale: 0.97 }}
+              style={{
+                flex: 1, padding: '12px 28px',
+                background: '#5a1a08', color: '#f0e8d4',
+                border: '1px solid rgba(100,40,10,0.5)',
+                borderRadius: 2,
+                fontFamily: "'Oswald', sans-serif",
+                fontSize: 17, fontWeight: 700, letterSpacing: '0.15em',
+                cursor: 'pointer',
+                boxShadow: '0 3px 10px rgba(0,0,0,0.35)',
+              }}
+            >
+              ▶ BEGIN CHASE
+            </motion.button>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -769,16 +967,12 @@ export function ThiefDetectiveGame() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState(0);
   const [results, setResults] = useState<LevelResult[]>([]);
-  const [activeTab, setActiveTab] = useState<"clues" | "map">("clues");
-  const [showTransition, setShowTransition] = useState(false);
-  const [transitionDiff, setTransitionDiff] = useState<Difficulty>("medium");
   const [showCultureCard, setShowCultureCard] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
-  const [pexelsImages, setPexelsImages] = useState<Record<number, string>>({});
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>("easy");
   const [shuffledLevels, setShuffledLevels] = useState<Level[]>([]);
   const [imageZoomed, setImageZoomed] = useState(false);
-  const [menuHighlight, setMenuHighlight] = useState<Difficulty>("easy");
+  const [showSuspectBriefing, setShowSuspectBriefing] = useState(false);
 
   // Best scores per difficulty stored in localStorage
   const getBestScore = (d: Difficulty) =>
@@ -825,6 +1019,7 @@ export function ThiefDetectiveGame() {
   handleTimeUpRef.current = handleTimeUp;
 
   useEffect(() => {
+    if (showSuspectBriefing) return;
     if (gameState !== "playing") return;
     const duration = TIMER_DURATION[selectedDifficulty];
     setTimeLeft(duration);
@@ -850,7 +1045,7 @@ export function ThiefDetectiveGame() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [currentLevel, gameState]);
+  }, [currentLevel, gameState, showSuspectBriefing]);
 
   // Stop timer when answered
   useEffect(() => {
@@ -874,8 +1069,6 @@ export function ThiefDetectiveGame() {
     playSoundEffect("start");
     // Blur any focused element to prevent keyboard carry-over triggering reveal button
     (document.activeElement as HTMLElement)?.blur();
-    // All images hardcoded in LEVELS — no dynamic fetch needed
-    setPexelsImages({});
     setGameState("playing");
     setCurrentLevel(0);
     setScore(0);
@@ -887,8 +1080,8 @@ export function ThiefDetectiveGame() {
     setIsCorrect(false);
     setEarnedPoints(0);
     setResults([]);
-    setActiveTab("clues");
     setShowCultureCard(false);
+    setShowSuspectBriefing(true);
   };
 
   const maxClues = DIFFICULTY_CONFIG[diff].maxClues;
@@ -904,7 +1097,6 @@ export function ThiefDetectiveGame() {
     if (answered) return;
     playSoundEffect("click");
     setSelectedCountry(name);
-    setActiveTab("map");
   };
 
   const handleSubmit = () => {
@@ -966,7 +1158,7 @@ export function ThiefDetectiveGame() {
     answeredRef.current = false;
     setIsCorrect(false);
     setEarnedPoints(0);
-    setActiveTab("clues");
+    setShowSuspectBriefing(true);
   };
 
   const timerTotal = TIMER_DURATION[selectedDifficulty];
@@ -978,6 +1170,7 @@ export function ThiefDetectiveGame() {
     <>
       <div style={{
         position: 'absolute', inset: 0,
+        backgroundColor: '#1a0e04',
         backgroundImage: 'url(https://images.pexels.com/photos/1519088/pexels-photo-1519088.jpeg?auto=compress&cs=tinysrgb&w=1920)',
         backgroundSize: 'cover', backgroundPosition: 'center',
         filter: 'brightness(0.22) saturate(0.35) sepia(0.5)',
@@ -1006,6 +1199,7 @@ export function ThiefDetectiveGame() {
         {/* Background */}
         <div style={{
           position: 'absolute', inset: 0,
+          backgroundColor: '#1a0e04',
           backgroundImage: 'url(https://images.pexels.com/photos/1519088/pexels-photo-1519088.jpeg?auto=compress&cs=tinysrgb&w=1920)',
           backgroundSize: 'cover', backgroundPosition: 'center 30%',
           filter: 'brightness(0.18) saturate(0.3) sepia(0.4)',
@@ -1038,7 +1232,7 @@ export function ThiefDetectiveGame() {
 
               {/* WANTED header */}
               <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, letterSpacing: '0.25em', color: '#3a2010', marginBottom: 4 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, letterSpacing: '0.25em', color: '#3a2010', marginBottom: 4 }}>
                   INTERPOL — PRIORITY NOTICE
                 </div>
                 <div style={{
@@ -1074,10 +1268,10 @@ export function ThiefDetectiveGame() {
 
               {/* Name block */}
               <div style={{ textAlign: 'center', marginBottom: 10 }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: '0.15em', color: '#1a0c00', lineHeight: 1 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 23, fontWeight: 700, letterSpacing: '0.15em', color: '#1a0c00', lineHeight: 1 }}>
                   "THE PHANTOM"
                 </div>
-                <div style={{ fontSize: 9, letterSpacing: '0.22em', color: '#6a5040', fontFamily: "'Space Mono', monospace", marginTop: 3 }}>
+                <div style={{ fontSize: 13, letterSpacing: '0.22em', color: '#6a5040', fontFamily: "'Space Mono', monospace", marginTop: 3 }}>
                   ALIAS UNKNOWN · SEX UNKNOWN
                 </div>
               </div>
@@ -1086,7 +1280,7 @@ export function ThiefDetectiveGame() {
               <div style={{ borderTop: '1px solid #b09870', margin: '10px 0' }} />
 
               {/* Details */}
-              <div style={{ fontSize: 8.5, color: '#4a3020', fontFamily: "'Space Mono', monospace", lineHeight: 1.9, letterSpacing: '0.05em' }}>
+              <div style={{ fontSize: 13, color: '#4a3020', fontFamily: "'Space Mono', monospace", lineHeight: 1.9, letterSpacing: '0.05em' }}>
                 <div>NATIONALITY:  UNKNOWN</div>
                 <div>LAST SEEN:    MULTIPLE COUNTRIES</div>
                 <div>SPECIALITY:   THEFT · EVASION</div>
@@ -1098,7 +1292,7 @@ export function ThiefDetectiveGame() {
                 transform: 'rotate(12deg)',
                 border: '2px solid rgba(140,20,10,0.7)',
                 padding: '3px 8px',
-                fontSize: 8, fontWeight: 700, letterSpacing: '0.2em',
+                fontSize: 13, fontWeight: 700, letterSpacing: '0.2em',
                 color: 'rgba(140,20,10,0.8)',
                 fontFamily: "'Oswald', sans-serif",
                 background: 'rgba(255,255,255,0.1)',
@@ -1116,7 +1310,7 @@ export function ThiefDetectiveGame() {
               style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}
             >
               <div style={{ height: 1, width: 28, background: 'rgba(212,180,120,0.35)' }} />
-              <span style={{ fontSize: 9, letterSpacing: '0.38em', color: 'rgba(212,180,120,0.45)', fontFamily: "'Space Mono', monospace" }}>INTERPOL · CASE FILE OPEN</span>
+              <span style={{ fontSize: 13, letterSpacing: '0.38em', color: 'rgba(212,180,120,0.45)', fontFamily: "'Space Mono', monospace" }}>INTERPOL · CASE FILE OPEN</span>
             </motion.div>
 
             {/* Title */}
@@ -1133,7 +1327,7 @@ export function ThiefDetectiveGame() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
               style={{ marginBottom: 28, maxWidth: 380 }}
             >
-              <p style={{ margin: '0 0 8px', fontSize: 13, color: 'rgba(255,255,255,0.62)', lineHeight: 1.7 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 16, color: 'rgba(255,255,255,0.62)', lineHeight: 1.7 }}>
                 The Phantom has struck again — six countries, no witnesses.
                 Study the crime scene photos and <span style={{ color: 'rgba(212,180,120,0.9)', fontWeight: 600 }}>mark the country on the map</span> before they disappear.
               </p>
@@ -1145,7 +1339,7 @@ export function ThiefDetectiveGame() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#e04030', boxShadow: '0 0 8px #e04030', display: 'inline-block', flexShrink: 0 }} />
-                <span style={{ fontSize: 8, letterSpacing: '0.3em', color: 'rgba(212,180,120,0.5)', fontFamily: "'Space Mono', monospace" }}>PHANTOM SIGHTINGS — LIVE FEED</span>
+                <span style={{ fontSize: 13, letterSpacing: '0.3em', color: 'rgba(212,180,120,0.5)', fontFamily: "'Space Mono', monospace" }}>PHANTOM SIGHTINGS — LIVE FEED</span>
               </div>
               {/* Ticker window */}
               <div style={{ height: 132, overflow: 'hidden', position: 'relative' }}>
@@ -1159,9 +1353,9 @@ export function ThiefDetectiveGame() {
                 >
                   {[...SIGHTINGS, ...SIGHTINGS].map(({ flag, loc, time, hot }, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 10px', background: hot ? 'rgba(220,60,30,0.07)' : 'rgba(255,255,255,0.025)', borderLeft: `2px solid ${hot ? 'rgba(220,60,30,0.5)' : 'rgba(255,255,255,0.06)'}` }}>
-                      <span style={{ fontSize: 13 }}>{flag}</span>
-                      <span style={{ fontSize: 10, color: hot ? 'rgba(255,200,180,0.85)' : 'rgba(212,180,120,0.5)', letterSpacing: '0.08em', flex: 1, fontFamily: "'Space Mono', monospace" }}>{loc}</span>
-                      <span style={{ fontSize: 8, color: hot ? 'rgba(220,100,80,0.7)' : 'rgba(255,255,255,0.18)', fontFamily: "'Space Mono', monospace" }}>{time}</span>
+                      <span style={{ fontSize: 16 }}>{flag}</span>
+                      <span style={{ fontSize: 13, color: hot ? 'rgba(255,200,180,0.85)' : 'rgba(212,180,120,0.5)', letterSpacing: '0.08em', flex: 1, fontFamily: "'Space Mono', monospace" }}>{loc}</span>
+                      <span style={{ fontSize: 13, color: hot ? 'rgba(220,100,80,0.7)' : 'rgba(255,255,255,0.18)', fontFamily: "'Space Mono', monospace" }}>{time}</span>
                     </div>
                   ))}
                 </motion.div>
@@ -1180,13 +1374,13 @@ export function ThiefDetectiveGame() {
                   border: '1px solid rgba(212,180,120,0.45)',
                   borderLeft: '3px solid rgba(212,180,120,0.7)',
                   color: 'rgba(212,180,120,0.95)',
-                  fontWeight: 700, letterSpacing: '0.2em', fontSize: 13,
+                  fontWeight: 700, letterSpacing: '0.2em', fontSize: 17,
                   padding: '14px 28px', borderRadius: '0 3px 3px 0',
                   cursor: 'pointer', fontFamily: "'Oswald', sans-serif",
                   boxShadow: '0 0 28px rgba(212,180,120,0.06)',
                 }}
               >
-                <span style={{ fontSize: 16 }}>▶</span>
+                <span style={{ fontSize: 20 }}>▶</span>
                 ACCEPT MISSION
               </motion.button>
             </motion.div>
@@ -1228,22 +1422,22 @@ export function ThiefDetectiveGame() {
                 border: '3px solid rgba(139,26,10,0.7)',
                 padding: '4px 10px',
                 fontFamily: "'Oswald', sans-serif",
-                fontSize: 14, fontWeight: 900, letterSpacing: '0.22em',
+                fontSize: 18, fontWeight: 900, letterSpacing: '0.22em',
                 color: 'rgba(139,26,10,0.72)',
               }}>CLASSIFIED</div>
 
               {/* Letterhead */}
               <div style={{ marginBottom: 18, paddingBottom: 12, borderBottom: '2px solid #9a8060' }}>
-                <div style={{ fontSize: 10, letterSpacing: '0.3em', color: '#3a2510', fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>
+                <div style={{ fontSize: 13, letterSpacing: '0.3em', color: '#3a2510', fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>
                   INTERPOL · FIELD OPERATIONS DIVISION
                 </div>
-                <div style={{ fontSize: 9, letterSpacing: '0.18em', color: '#7a6040', fontFamily: "'Space Mono', monospace", marginTop: 3 }}>
+                <div style={{ fontSize: 13, letterSpacing: '0.18em', color: '#7a6040', fontFamily: "'Space Mono', monospace", marginTop: 3 }}>
                   DOC REF: OP-PHANTOM-7 · EYES ONLY
                 </div>
               </div>
 
               {/* TO / FROM / RE — high contrast */}
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, lineHeight: 1.9, marginBottom: 18 }}>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, lineHeight: 1.9, marginBottom: 18 }}>
                 {[
                   { label: 'TO  :', value: 'FIELD DETECTIVE, UNIT 7' },
                   { label: 'FROM:', value: 'DIRECTOR D. HAYES' },
@@ -1260,17 +1454,17 @@ export function ThiefDetectiveGame() {
               <div style={{ borderTop: '1px solid #b09870', marginBottom: 16 }} />
 
               {/* Body paragraph */}
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, lineHeight: 2, color: '#2a1a0a', marginBottom: 16 }}>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, lineHeight: 2, color: '#2a1a0a', marginBottom: 16 }}>
                 You are hereby assigned to locate THE PHANTOM. Crime scene
                 photographs from each heist have been loaded into your case file.
               </div>
 
               {/* Rules — prominent header */}
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '0.2em', color: '#8b1a0a', marginBottom: 8, borderBottom: '1px solid #c0a080', paddingBottom: 4 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 700, letterSpacing: '0.2em', color: '#8b1a0a', marginBottom: 8, borderBottom: '1px solid #c0a080', paddingBottom: 4 }}>
                   RULES OF ENGAGEMENT
                 </div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, lineHeight: 2.2, color: '#1a0800' }}>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, lineHeight: 2.2, color: '#1a0800' }}>
                   <div>— Each case: <strong>30–60 second window</strong> before the trail goes cold.</div>
                   <div>— Intel clues available, but each one <strong>costs points.</strong></div>
                   <div>— <strong>One map click only.</strong> No second chances.</div>
@@ -1279,8 +1473,8 @@ export function ThiefDetectiveGame() {
               </div>
 
               {/* Redacted */}
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, lineHeight: 2, color: '#2a1a0a', marginBottom: 20 }}>
-                <span style={{ background: '#1a0c00', color: '#1a0c00', padding: '1px 4px', userSelect: 'none' }}>████████████</span>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, lineHeight: 2, color: '#2a1a0a', marginBottom: 20 }}>
+                <span style={{ fontSize: 16, fontFamily: 'monospace', color: '#8b0000', background: 'rgba(0,0,0,0.15)', padding: '2px 12px', border: '1px solid rgba(139,0,0,0.4)', borderRadius: 2, letterSpacing: '0.15em', userSelect: 'none' }}>[REDACTED]</span>
                 {' '}has been authorized to assist. Do not fail.
               </div>
 
@@ -1288,26 +1482,27 @@ export function ThiefDetectiveGame() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
                 <div>
                   <div style={{ fontFamily: 'Georgia, serif', fontSize: 24, color: '#1a0800', marginBottom: 2 }}>D. Hayes</div>
-                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, color: '#5a4030', lineHeight: 1.8 }}>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#5a4030', lineHeight: 1.8 }}>
                     <div>DIRECTOR, INTERPOL</div>
                     <div>FIELD OPERATIONS</div>
                   </div>
                 </div>
                 <div style={{ border: '2px solid rgba(20,100,30,0.65)', borderRadius: '50%', width: 70, height: 70, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transform: 'rotate(-8deg)', color: 'rgba(20,100,30,0.7)', fontFamily: "'Oswald', sans-serif", textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em' }}>APPROVED</div>
-                  <div style={{ fontSize: 7, letterSpacing: '0.08em' }}>UNIT 7</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.12em' }}>APPROVED</div>
+                  <div style={{ fontSize: 13, letterSpacing: '0.08em' }}>UNIT 7</div>
                 </div>
               </div>
             </div>
 
             {/* Nav buttons — dark strip at bottom of paper */}
-            <div style={{ background: '#1a1008', display: 'flex', gap: 0 }}>
-              <button onClick={() => setGameState("welcome")}
-                style={{ background: 'transparent', border: 'none', borderRight: '1px solid rgba(212,180,120,0.15)', color: 'rgba(212,180,120,0.5)', fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: '0.2em', padding: '13px 22px', cursor: 'pointer' }}
-              >← BACK</button>
-              <motion.button whileHover={{ background: 'rgba(212,180,120,0.15)' }} whileTap={{ scale: 0.98 }}
+            <div style={{ background: '#2a1a06', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(200,168,130,0.3)' }}>
+              <motion.button whileHover={{ opacity: 0.85 }}
+                onClick={() => setGameState("welcome")}
+                style={{ color: '#c8a882', background: 'transparent', border: '1px solid rgba(200,168,130,0.4)', padding: '10px 24px', fontFamily: "'Oswald', sans-serif", fontSize: 15, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 4 }}
+              >← BACK</motion.button>
+              <motion.button whileHover={{ opacity: 0.85 }} whileTap={{ scale: 0.98 }}
                 onClick={() => setGameState("difficulty")}
-                style={{ flex: 1, background: 'transparent', border: 'none', borderLeft: '3px solid rgba(212,180,120,0.6)', color: 'rgba(212,180,120,0.95)', fontWeight: 700, letterSpacing: '0.22em', fontSize: 12, padding: '13px 0', cursor: 'pointer', fontFamily: "'Oswald', sans-serif" }}
+                style={{ background: '#5a1a08', color: '#f0e8d4', border: 'none', padding: '12px 28px', fontFamily: "'Oswald', sans-serif", fontSize: 17, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', borderRadius: 4 }}
               >
                 SELECT DIFFICULTY →
               </motion.button>
@@ -1341,7 +1536,7 @@ export function ThiefDetectiveGame() {
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             style={{ marginBottom: 28, textAlign: 'center' }}
           >
-            <div style={{ fontSize: 8, letterSpacing: '0.38em', color: 'rgba(212,180,120,0.38)', fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>
+            <div style={{ fontSize: 13, letterSpacing: '0.38em', color: 'rgba(212,180,120,0.38)', fontFamily: "'Space Mono', monospace", marginBottom: 6 }}>
               ◈ INTERPOL · CHOOSE YOUR OPERATION
             </div>
             <div style={{ fontSize: '2.2rem', fontWeight: 900, letterSpacing: '0.12em', color: '#fff', fontFamily: "'Oswald', sans-serif" }}>
@@ -1372,7 +1567,7 @@ export function ThiefDetectiveGame() {
                 >
                   {/* Folder tab */}
                   <div style={{ height: 28, background: tabColor, display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 12, marginRight: 60, borderRadius: '4px 4px 0 0' }}>
-                    <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: '0.3em', color: 'rgba(255,255,255,0.9)', fontFamily: "'Space Mono', monospace" }}>{tab}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.3em', color: 'rgba(255,255,255,0.9)', fontFamily: "'Space Mono', monospace" }}>{tab}</span>
                   </div>
 
                   {/* Folder body */}
@@ -1383,18 +1578,18 @@ export function ThiefDetectiveGame() {
                       transform: 'rotate(10deg)',
                       border: `2px solid ${tabColor}aa`,
                       padding: '2px 7px',
-                      fontSize: 8, fontWeight: 700, letterSpacing: '0.18em',
+                      fontSize: 13, fontWeight: 700, letterSpacing: '0.18em',
                       color: `${tabColor}cc`,
                       fontFamily: "'Oswald', sans-serif",
                     }}>{locked ? 'LOCKED' : stamp}</div>
 
                     {/* Case label */}
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 8, color: '#5a4020', letterSpacing: '0.2em', marginBottom: 8 }}>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#5a4020', letterSpacing: '0.2em', marginBottom: 8 }}>
                       CASE FILE OP-{di + 1}
                     </div>
 
                     {/* Title */}
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, fontWeight: 700, letterSpacing: '0.1em', color: '#1a0800', lineHeight: 1.1, marginBottom: 12 }}>
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, letterSpacing: '0.1em', color: '#1a0800', lineHeight: 1.1, marginBottom: 12 }}>
                       {label}
                     </div>
 
@@ -1402,25 +1597,22 @@ export function ThiefDetectiveGame() {
                     <div style={{ borderTop: '1px solid #b09060', marginBottom: 12 }} />
 
                     {/* Stats typed out */}
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, color: '#3a2010', lineHeight: 2 }}>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#3a2010', lineHeight: 2 }}>
                       <div>TIME:   <strong>{timer}</strong></div>
                       <div>INTEL:  <strong>{clues}</strong></div>
                     </div>
 
                     {/* Desc */}
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 8.5, color: '#5a4030', lineHeight: 1.7, marginTop: 10, borderTop: '1px dashed #c0a070', paddingTop: 10 }}>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#5a4030', lineHeight: 1.7, marginTop: 10, borderTop: '1px dashed #c0a070', paddingTop: 10 }}>
                       {locked && unlockFrom ? `Score 60+ on ${unlockFrom.toUpperCase()} to unlock` : desc}
                     </div>
 
                     {/* Best score */}
-                    {!locked && best > 0 && (
+                    {!locked && (
                       <div style={{ position: 'absolute', bottom: 14, right: 14, textAlign: 'right' }}>
-                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color: tabColor }}>{best}</div>
-                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 7, color: '#7a6040' }}>BEST/90</div>
+                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 23, fontWeight: 700, color: tabColor }}>{best > 0 ? best : '—'}</div>
+                        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#7a6040' }}>/90</div>
                       </div>
-                    )}
-                    {!locked && best === 0 && (
-                      <div style={{ position: 'absolute', bottom: 16, right: 14, fontFamily: "'Space Mono', monospace", fontSize: 8, color: '#9a8060', letterSpacing: '0.15em' }}>NEW</div>
                     )}
                   </div>
                 </motion.div>
@@ -1433,7 +1625,7 @@ export function ThiefDetectiveGame() {
             style={{ marginTop: 36 }}
           >
             <button onClick={() => setGameState("howtoplay")}
-              style={{ background: 'transparent', border: '1px solid rgba(212,180,120,0.2)', color: 'rgba(212,180,120,0.4)', fontFamily: "'Space Mono', monospace", fontSize: 9, letterSpacing: '0.2em', padding: '10px 20px', borderRadius: 2, cursor: 'pointer' }}
+              style={{ background: 'transparent', border: '1px solid rgba(212,180,120,0.2)', color: 'rgba(212,180,120,0.4)', fontFamily: "'Space Mono', monospace", fontSize: 15, letterSpacing: '0.2em', padding: '10px 20px', borderRadius: 2, cursor: 'pointer' }}
             >← BACK</button>
           </motion.div>
         </div>
@@ -1450,22 +1642,12 @@ export function ThiefDetectiveGame() {
   if (gameState === "result") {
     const maxScore = 3 * 30;
     const correctCount = results.filter(r => r.correct).length;
-    const pct = Math.round((score / maxScore) * 100);
     const timedOutCount = results.filter(r => r.timedOut).length;
 
     const NEXT_DIFF: Partial<Record<Difficulty, Difficulty>> = { easy: "medium", medium: "hard" };
     const DIFF_LABELS: Record<Difficulty, string> = { easy: "Rookie Chase", medium: "Senior Agent", hard: "Elite Operation" };
     const nextDiff = NEXT_DIFF[selectedDifficulty];
     const nextUnlocked = nextDiff && score >= 60; // need 60/90 to unlock next
-
-    const rating =
-      correctCount === 3
-        ? { text: "Perfect Capture!", emoji: "🏆", color: "text-amber-400", msg: "All suspects caught! Flawless detective work!" }
-        : correctCount === 2
-        ? { text: "Sharp Detective", emoji: "🌟", color: "text-blue-400", msg: "2 out of 3 caught. Almost perfect!" }
-        : correctCount === 1
-        ? { text: "Field Agent", emoji: "🎯", color: "text-emerald-400", msg: "1 suspect caught. Keep sharpening your skills!" }
-        : { text: "Trainee Detective", emoji: "🔍", color: "text-slate-400", msg: "Keep practicing — The Phantom won't be free forever!" };
 
     // ── Achievements ──
     const allCluesZero = results.every(r => r.cluesUsed === 0);
@@ -1498,10 +1680,10 @@ export function ThiefDetectiveGame() {
         {/* ── Masthead ── */}
         <div style={{ background: 'rgba(10,6,2,0.97)', borderBottom: '3px solid rgba(160,115,35,0.5)', padding: '8px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 7, color: 'rgba(200,169,110,0.6)', fontFamily: "'Courier New', monospace", letterSpacing: '0.25em', marginBottom: 2 }}>INTERPOL · PHANTOM UNIT</div>
+            <div style={{ fontSize: 13, color: 'rgba(200,169,110,0.6)', fontFamily: "'Courier New', monospace", letterSpacing: '0.25em', marginBottom: 2 }}>INTERPOL · PHANTOM UNIT</div>
             <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: '1.1rem', color: '#e8dcc8', letterSpacing: '0.12em' }}>GLOBAL CHASE</div>
           </div>
-          <div style={{ fontFamily: "'Courier New', monospace", fontSize: 8, color: 'rgba(200,169,110,0.5)', letterSpacing: '0.15em', textAlign: 'right' }}>
+          <div style={{ fontFamily: "'Courier New', monospace", fontSize: 13, color: 'rgba(200,169,110,0.5)', letterSpacing: '0.15em', textAlign: 'right' }}>
             <div>CASE FILE — CLOSED</div>
             <div>{DIFF_LABELS[selectedDifficulty].toUpperCase()}</div>
           </div>
@@ -1513,7 +1695,7 @@ export function ThiefDetectiveGame() {
           {(() => {
             const totalCluesUsed = results.reduce((sum, r) => sum + r.cluesUsed, 0);
             const ESCAPE_CITIES = ['Zurich', 'Buenos Aires', 'Istanbul', 'Seoul', 'Cape Town', 'Shanghai'];
-            const escapeCity = ESCAPE_CITIES[Math.floor(score % ESCAPE_CITIES.length)];
+            const escapeCity = ESCAPE_CITIES[Math.floor(Math.random() * ESCAPE_CITIES.length)];
             const RANK = score === maxScore ? { title: 'PHANTOM HUNTER',  color: '#6b430f' }
               : score >= 75 ? { title: 'CHIEF INSPECTOR',   color: '#4a6a20' }
               : score >= 55 ? { title: 'SENIOR INSPECTOR',  color: '#3a5a18' }
@@ -1527,14 +1709,13 @@ export function ThiefDetectiveGame() {
               ? `One suspect brought in. Two operatives remain at large. Last signal traced toward ${escapeCity} — the trail may already be cold.`
               : `All three suspects evaded capture. The Phantom has gone dark. No leads, no witnesses. Case escalated to the Director's office.`;
             const stampColor = correctCount === 3 ? '#2a6a10' : correctCount >= 2 ? '#8a5a08' : '#8a1a0a';
-            const stampText  = correctCount === 3 ? 'CASE CLOSED' : correctCount >= 1 ? 'PARTIALLY CLOSED' : 'CASE OPEN';
             const headline = correctCount === 3 ? 'SUSPECTS APPREHENDED' : correctCount === 2 ? 'PARTIAL CAPTURE' : correctCount === 1 ? 'SUSPECT ESCAPED' : 'PHANTOM AT LARGE';
             return (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
                 style={{ marginBottom: 22 }}
               >
                 {/* Eyebrow */}
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, color: 'rgba(40,25,8,0.45)', letterSpacing: '0.25em', marginBottom: 6 }}>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: 'rgba(40,25,8,0.45)', letterSpacing: '0.25em', marginBottom: 6 }}>
                   DETECTIVE SCORECARD · {DIFF_LABELS[selectedDifficulty].toUpperCase()}
                 </div>
 
@@ -1550,20 +1731,20 @@ export function ThiefDetectiveGame() {
                 <div style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'stretch' }}>
                   {/* Score box */}
                   <div style={{ flex: 1, background: '#ede0c4', boxShadow: '2px 4px 14px rgba(0,0,0,0.22)', padding: '16px 20px', borderTop: `4px solid ${stampColor}` }}>
-                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 8, color: 'rgba(40,25,8,0.45)', letterSpacing: '0.2em', marginBottom: 6 }}>FINAL SCORE</div>
+                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 16, fontWeight: 700, color: 'rgba(40,25,8,0.45)', letterSpacing: '0.2em', marginBottom: 6 }}>FINAL SCORE</div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                       <span style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 44, color: '#1a0800', lineHeight: 1 }}>{score}</span>
-                      <span style={{ fontFamily: "'Courier New', monospace", fontSize: 11, color: 'rgba(40,25,8,0.5)' }}>/ {maxScore} pts</span>
+                      <span style={{ fontFamily: "'Courier New', monospace", fontSize: 14, color: 'rgba(40,25,8,0.5)' }}>/ {maxScore} pts</span>
                     </div>
                     {/* Stat row */}
-                    <div style={{ display: 'flex', gap: 18, marginTop: 10, fontFamily: "'Courier New', monospace", fontSize: 10 }}>
+                    <div style={{ display: 'flex', gap: 18, marginTop: 10, fontFamily: "'Courier New', monospace", fontSize: 16 }}>
                       <div>
-                        <span style={{ fontSize: 16, fontWeight: 900, color: '#1a0800' }}>{correctCount}/3</span>
-                        <span style={{ color: 'rgba(40,25,8,0.45)', marginLeft: 4 }}>caught</span>
+                        <span style={{ fontSize: 20, fontWeight: 900, color: '#1a0800' }}>{correctCount}/3</span>
+                        <span style={{ color: 'rgba(40,25,8,0.45)', marginLeft: 4, fontWeight: 600 }}>caught</span>
                       </div>
                       <div>
-                        <span style={{ fontSize: 16, fontWeight: 900, color: '#1a0800' }}>{totalCluesUsed}</span>
-                        <span style={{ color: 'rgba(40,25,8,0.45)', marginLeft: 4 }}>clues used</span>
+                        <span style={{ fontSize: 20, fontWeight: 900, color: '#1a0800' }}>{totalCluesUsed}</span>
+                        <span style={{ color: 'rgba(40,25,8,0.45)', marginLeft: 4, fontWeight: 600 }}>clues used</span>
                       </div>
                     </div>
                   </div>
@@ -1574,18 +1755,18 @@ export function ThiefDetectiveGame() {
                     transition={{ delay: 0.25, type: 'spring', stiffness: 200, damping: 18 }}
                     style={{ background: '#ede0c4', boxShadow: '2px 4px 14px rgba(0,0,0,0.22)', padding: '16px 18px', borderTop: `4px solid ${RANK.color}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, minWidth: 110 }}
                   >
-                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 8, color: 'rgba(40,25,8,0.45)', letterSpacing: '0.2em' }}>RANK</div>
-                    <div style={{ border: `2px solid ${RANK.color}`, borderRadius: '50%', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 6 }}>
-                      <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 9, letterSpacing: '0.1em', color: RANK.color, lineHeight: 1.3 }}>{RANK.title}</div>
+                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 16, fontWeight: 700, color: 'rgba(40,25,8,0.45)', letterSpacing: '0.2em' }}>RANK</div>
+                    <div style={{ border: `2px solid ${RANK.color}`, borderRadius: '50%', width: 140, height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 12 }}>
+                      <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: 15, letterSpacing: '0.1em', color: RANK.color, lineHeight: 1.3 }}>{RANK.title}</div>
                     </div>
-                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 8, color: 'rgba(40,25,8,0.4)', letterSpacing: '0.1em', textAlign: 'center', lineHeight: 1.4 }}>Further training<br/>required</div>
+                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 13, color: 'rgba(40,25,8,0.4)', letterSpacing: '0.1em', textAlign: 'center', lineHeight: 1.4 }}>{RANK.title === 'PHANTOM HUNTER' ? <>Elite status<br/>achieved</> : <>Further training<br/>required</>}</div>
                   </motion.div>
                 </div>
 
                 {/* Verdict */}
                 <div style={{ background: '#ede0c4', boxShadow: '2px 4px 14px rgba(0,0,0,0.18)', padding: '14px 18px', borderLeft: `4px solid ${stampColor}` }}>
-                  <div style={{ fontFamily: "'Courier New', monospace", fontSize: 8, color: '#8b1a0a', letterSpacing: '0.22em', fontWeight: 900, marginBottom: 8 }}>DIRECTOR'S VERDICT</div>
-                  <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 12, color: '#2a1206', lineHeight: 1.8 }}>{VERDICT}</div>
+                  <div style={{ fontFamily: "'Courier New', monospace", fontSize: 13, color: '#8b1a0a', letterSpacing: '0.22em', fontWeight: 900, marginBottom: 8 }}>DIRECTOR'S VERDICT</div>
+                  <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 15, color: '#2a1206', lineHeight: 1.8 }}>{VERDICT}</div>
                 </div>
               </motion.div>
             );
@@ -1593,7 +1774,7 @@ export function ThiefDetectiveGame() {
 
           {/* ── Case results ── */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} style={{ marginBottom: 22 }}>
-            <div style={{ fontFamily: "'Courier New', monospace", fontSize: 10, letterSpacing: '0.22em', color: '#3a1e06', marginBottom: 12, borderTop: '2px solid rgba(40,25,8,0.35)', paddingTop: 14, fontWeight: 900 }}>
+            <div style={{ fontFamily: "'Courier New', monospace", fontSize: 13, letterSpacing: '0.22em', color: '#3a1e06', marginBottom: 12, borderTop: '2px solid rgba(40,25,8,0.35)', paddingTop: 14, fontWeight: 900 }}>
               — CASE LOG —
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
@@ -1617,19 +1798,19 @@ export function ThiefDetectiveGame() {
                     {/* Rubber stamp top-right */}
                     <div style={{
                       position: 'absolute', top: 10, right: 10,
-                      fontFamily: "'Courier New', monospace", fontSize: 7, fontWeight: 900, letterSpacing: '0.12em', lineHeight: 1.4,
+                      fontFamily: "'Courier New', monospace", fontSize: 16, fontWeight: 800, letterSpacing: '0.12em', lineHeight: 1.4,
                       color: stampColor, border: `2px solid ${stampColor}`,
                       padding: '2px 5px', transform: 'rotate(8deg)',
                       opacity: 0.75, textAlign: 'center', whiteSpace: 'pre',
                     }}>{stampText}</div>
 
                     {/* Case number */}
-                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 8, color: 'rgba(100,70,30,0.5)', letterSpacing: '0.1em' }}>
+                    <div style={{ fontFamily: "'Courier New', monospace", fontSize: 13, color: 'rgba(100,70,30,0.5)', letterSpacing: '0.1em' }}>
                       CASE {String(ri + 1).padStart(2, '0')}
                     </div>
 
                     {/* Country — the focal point */}
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 22, color: '#1a0800', lineHeight: 1, paddingRight: 34 }}>
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 25, color: '#1a0800', lineHeight: 1, paddingRight: 34 }}>
                       {r.country}
                     </div>
 
@@ -1637,7 +1818,7 @@ export function ThiefDetectiveGame() {
                     <div style={{ borderTop: '1px dashed rgba(0,0,0,0.18)' }} />
 
                     {/* Result note */}
-                    <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 10, color: 'rgba(40,25,8,0.6)', lineHeight: 1.4 }}>
+                    <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 13, color: 'rgba(40,25,8,0.6)', lineHeight: 1.4 }}>
                       {isCorrect
                         ? <><strong style={{ fontStyle: 'normal', color: '#1a5a08' }}>+{r.points} pts</strong> — suspect apprehended</>
                         : isTimeout
@@ -1663,23 +1844,23 @@ export function ThiefDetectiveGame() {
                 opacity: nextUnlocked ? 1 : 0.7,
               }}>
                 {/* Status marker */}
-                <div style={{ fontFamily: "'Courier New', monospace", fontSize: 22, color: nextUnlocked ? '#3a6010' : 'rgba(40,25,8,0.3)', flexShrink: 0, lineHeight: 1 }}>
+                <div style={{ fontFamily: "'Courier New', monospace", fontSize: 25, color: nextUnlocked ? '#3a6010' : 'rgba(40,25,8,0.3)', flexShrink: 0, lineHeight: 1 }}>
                   {nextUnlocked ? '▣' : '▢'}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 900, fontSize: 9, letterSpacing: '0.2em', color: nextUnlocked ? '#4a6a10' : 'rgba(40,25,8,0.4)', marginBottom: 3 }}>
+                  <div style={{ fontFamily: "'Courier New', monospace", fontWeight: 900, fontSize: 13, letterSpacing: '0.2em', color: nextUnlocked ? '#4a6a10' : 'rgba(40,25,8,0.4)', marginBottom: 3 }}>
                     {nextUnlocked
                       ? `${({ medium: 'SENIOR AGENT', hard: 'ELITE OPERATION' } as Record<string,string>)[nextDiff]} — CLEARANCE GRANTED`
                       : `${({ medium: 'SENIOR AGENT', hard: 'ELITE OPERATION' } as Record<string,string>)[nextDiff]} — ACCESS DENIED`}
                   </div>
-                  <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 11, color: 'rgba(40,25,8,0.58)' }}>
+                  <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 14, color: 'rgba(40,25,8,0.58)' }}>
                     {nextUnlocked ? `Score ${score}/90 — next tier is now available.` : `Score 60+ pts to unlock. You got ${score}/90 — ${60 - score} more needed.`}
                   </div>
                 </div>
                 {nextUnlocked && (
                   <button
                     onClick={() => beginGame(nextDiff)}
-                    style={{ padding: '7px 16px', background: '#2a1806', color: '#f0e8d4', border: '1px solid rgba(180,130,40,0.4)', fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', cursor: 'pointer', flexShrink: 0 }}
+                    style={{ padding: '12px 28px', background: '#2a1806', color: '#f0e8d4', border: '1px solid rgba(180,130,40,0.4)', fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: '0.12em', cursor: 'pointer', flexShrink: 0 }}
                   >
                     NEXT TIER →
                   </button>
@@ -1690,7 +1871,7 @@ export function ThiefDetectiveGame() {
 
           {/* ── Achievements ── */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48 }} style={{ marginBottom: 24 }}>
-            <div style={{ fontFamily: "'Courier New', monospace", fontSize: 10, letterSpacing: '0.22em', color: '#3a1e06', marginBottom: 10, borderTop: '2px solid rgba(40,25,8,0.35)', paddingTop: 14, display: 'flex', justifyContent: 'space-between', fontWeight: 900 }}>
+            <div style={{ fontFamily: "'Courier New', monospace", fontSize: 13, letterSpacing: '0.22em', color: '#3a1e06', marginBottom: 10, borderTop: '2px solid rgba(40,25,8,0.35)', paddingTop: 14, display: 'flex', justifyContent: 'space-between', fontWeight: 900 }}>
               <span>— COMMENDATIONS —</span>
               <span style={{ opacity: 0.55 }}>{ACHIEVEMENTS.filter(a => a.earned).length} / {ACHIEVEMENTS.length}</span>
             </div>
@@ -1698,8 +1879,8 @@ export function ThiefDetectiveGame() {
             {/* Grand Master — certificate banner */}
             {isGrandMaster && (
               <div style={{ background: '#f0e6c2', borderTop: '3px double rgba(160,110,15,0.6)', borderBottom: '3px double rgba(160,110,15,0.6)', padding: '7px 16px', marginBottom: 10, textAlign: 'center' }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 12, letterSpacing: '0.35em', color: '#7a4e08' }}>★ &nbsp; GRAND MASTER DETECTIVE &nbsp; ★</div>
-                <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 10, color: 'rgba(40,25,8,0.6)', marginTop: 3 }}>Every tier conquered. The Phantom has nowhere left to hide.</div>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 15, letterSpacing: '0.35em', color: '#7a4e08' }}>★ &nbsp; GRAND MASTER DETECTIVE &nbsp; ★</div>
+                <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 13, color: 'rgba(40,25,8,0.6)', marginTop: 3 }}>Every tier conquered. The Phantom has nowhere left to hide.</div>
               </div>
             )}
 
@@ -1724,8 +1905,8 @@ export function ThiefDetectiveGame() {
                         opacity: a.earned ? 1 : 0.45,
                       }}
                     >
-                      <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 11, letterSpacing: '0.14em', color: a.earned ? '#1a0800' : 'rgba(40,25,8,0.5)' }}>{a.title.toUpperCase()}</div>
-                      <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 9, color: 'rgba(40,25,8,0.5)', marginTop: 2 }}>{a.desc}</div>
+                      <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 900, fontSize: 14, letterSpacing: '0.14em', color: a.earned ? '#1a0800' : 'rgba(40,25,8,0.5)' }}>{a.title.toUpperCase()}</div>
+                      <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 13, color: 'rgba(40,25,8,0.5)', marginTop: 2 }}>{a.desc}</div>
                     </motion.div>
                   );
                 })}
@@ -1736,58 +1917,19 @@ export function ThiefDetectiveGame() {
           {/* ── Action buttons ── */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }} style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={() => setGameState("welcome")}
-              style={{ flex: 1, padding: '10px', background: 'rgba(40,25,8,0.08)', color: 'rgba(40,25,8,0.85)', border: '1.5px solid rgba(40,25,8,0.4)', fontFamily: "'Courier New', monospace", fontSize: 10, letterSpacing: '0.12em', cursor: 'pointer', borderRadius: 2 }}
+              onClick={() => setGameState("difficulty")}
+              style={{ flex: 1, padding: '10px 20px', background: 'rgba(40,25,8,0.08)', color: 'rgba(40,25,8,0.85)', border: '1.5px solid rgba(40,25,8,0.4)', fontFamily: "'Courier New', monospace", fontSize: 15, letterSpacing: '0.12em', cursor: 'pointer', borderRadius: 2 }}
             >
-              ← CASE FILES
+              ← SELECT DIFFICULTY
             </button>
             <button
               onClick={() => beginGame(selectedDifficulty)}
-              style={{ flex: 2, padding: '10px', background: '#2a1806', color: '#f0e8d4', border: '1px solid rgba(180,130,40,0.4)', fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: '0.1em', cursor: 'pointer', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              style={{ flex: 2, padding: '12px 28px', background: '#2a1806', color: '#f0e8d4', border: '1px solid rgba(180,130,40,0.4)', fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: 17, letterSpacing: '0.1em', cursor: 'pointer', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              <RotateCcw style={{ width: 14, height: 14 }} /> REOPEN CASE
+              ↺ REPLAY
             </button>
           </motion.div>
         </div>
-      </div>
-    );
-  }
-
-  // ── Difficulty Transition Overlay ──────────────────────────────────────────
-  if (showTransition) {
-    const tcfg = DIFFICULTY_CONFIG[transitionDiff];
-    const labels: Record<Difficulty, string> = { easy: "Rookie Chase", medium: "Senior Agent", hard: "Elite Operation" };
-    const msgs: Record<Difficulty, string> = {
-      easy: "The chase begins...",
-      medium: "The Phantom is getting smarter...",
-      hard: "The ultimate pursuit begins. Don't blink!",
-    };
-    const diffInkColor = transitionDiff === 'easy' ? '#3a7a2a' : transitionDiff === 'medium' ? '#8b6914' : '#8b1c1c';
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#c4b89e', backgroundImage: 'radial-gradient(ellipse at 50% 50%, rgba(100,70,20,0.08) 0%, transparent 65%)' }}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.05 }}
-          style={{ textAlign: 'center', padding: '40px 60px', border: `2px solid ${diffInkColor}`, background: 'rgba(196,184,158,0.6)' }}
-        >
-          <div style={{ fontFamily: "'Courier New', monospace", fontSize: 8, letterSpacing: '0.3em', color: 'rgba(40,25,8,0.5)', marginBottom: 10 }}>INTERPOL · GLOBAL CHASE</div>
-          <motion.div
-            animate={{ rotate: [0, 8, -8, 0] }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            style={{ fontSize: 56, marginBottom: 14 }}
-          >{tcfg.icon}</motion.div>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: '2rem', color: diffInkColor, letterSpacing: '0.12em', marginBottom: 6 }}>
-            {labels[transitionDiff].toUpperCase()}
-          </div>
-          <div style={{ fontFamily: "'Georgia', serif", fontStyle: 'italic', fontSize: 13, color: 'rgba(40,25,8,0.6)', marginBottom: 20 }}>{msgs[transitionDiff]}</div>
-          <motion.div
-            style={{ height: 2, background: diffInkColor, margin: '0 auto', opacity: 0.7 }}
-            initial={{ width: 0 }}
-            animate={{ width: 220 }}
-            transition={{ duration: 2.2, ease: "linear" }}
-          />
-        </motion.div>
       </div>
     );
   }
@@ -1811,7 +1953,7 @@ export function ThiefDetectiveGame() {
               zIndex: 1050,
             }}
           >
-            <span style={{ fontSize: 9, letterSpacing: '0.25em', fontFamily: "'Courier New', monospace", color: isCritical ? '#c0201a' : '#b87a10', fontWeight: 900 }}>
+            <span style={{ fontSize: 13, letterSpacing: '0.25em', fontFamily: "'Courier New', monospace", color: isCritical ? '#c0201a' : '#b87a10', fontWeight: 900 }}>
               ▸ {isCritical ? `CRITICAL — PHANTOM ESCAPING — ${timeLeft}s` : `ALERT — SUSPECT MOVING — ${timeLeft}s REMAIN`}
             </span>
           </motion.div>
@@ -1825,13 +1967,13 @@ export function ThiefDetectiveGame() {
         borderBottom: '3px solid #b8860b',
         boxShadow: '0 4px 18px rgba(0,0,0,0.55)',
       }}>
-        {/* Main masthead row — 3-column: left / center timer / right score */}
-        <div style={{ padding: '6px 16px 0', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8 }}>
+        {/* Main masthead row — left title / right score */}
+        <div style={{ padding: '6px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           {/* Left: back + title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
-              onClick={() => setGameState("welcome")}
-              style={{ color: '#c9a84c', fontSize: 9, background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.1em', fontFamily: "'Courier New', Courier, monospace", fontWeight: 700, opacity: 0.8, whiteSpace: 'nowrap' }}
+              onClick={() => setGameState("difficulty")}
+              style={{ color: '#c8a882', fontSize: 16, background: 'none', border: '1px solid rgba(200,168,130,0.4)', borderRadius: 4, padding: '8px 16px', cursor: 'pointer', letterSpacing: '0.1em', fontFamily: "'Courier New', Courier, monospace", fontWeight: 700, opacity: 0.8, whiteSpace: 'nowrap' }}
             >← FILES</button>
             <div style={{ width: 1, height: 26, background: 'rgba(200,168,76,0.3)', flexShrink: 0 }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -1841,29 +1983,29 @@ export function ThiefDetectiveGame() {
               <DifficultyBadge d={diff} size="md" />
             </div>
           </div>
-          {/* Center: timer — prominent */}
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            {!answered
-              ? <CountdownTimer timeLeft={timeLeft} total={timerTotal} diff={diff} />
-              : <div style={{ fontSize: 9, color: 'rgba(200,168,76,0.45)', fontFamily: "'Courier New', monospace", letterSpacing: '0.16em' }}>— TIME UP —</div>
-            }
-          </div>
           {/* Right: score */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, border: '1px solid rgba(200,168,76,0.3)', borderRadius: 2, padding: '4px 10px', background: 'rgba(200,168,76,0.08)' }}>
               <span style={{ color: '#e8d5a0', fontWeight: 700, fontSize: 24, lineHeight: 1, fontFamily: "'Oswald', sans-serif" }}>{score}</span>
-              <span style={{ color: '#c9a84c', fontSize: 8, letterSpacing: '0.14em', fontFamily: "'Courier New', Courier, monospace", alignSelf: 'center' }}>PTS</span>
+              <span style={{ color: '#c9a84c', fontSize: 16, fontWeight: 700, letterSpacing: '0.14em', fontFamily: "'Courier New', Courier, monospace", alignSelf: 'center' }}>PTS</span>
             </div>
           </div>
         </div>
+        {/* Horizontal timer row */}
+        <div style={{ padding: '4px 0 2px' }}>
+          {!answered
+            ? <CountdownTimer timeLeft={timeLeft} total={timerTotal} />
+            : <div style={{ textAlign: 'center', fontSize: 32, fontWeight: 700, color: '#f0e8d4', fontFamily: "'Courier New', monospace", letterSpacing: '0.15em', padding: '6px 16px' }}>{timeLeft === 0 ? '— TIME UP —' : '— ANSWER SUBMITTED —'}</div>
+          }
+        </div>
         {/* Sub-rule + progress */}
         <div style={{ borderTop: '1px solid rgba(200,168,76,0.2)', margin: '5px 16px 0', paddingTop: 3, paddingBottom: 5, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 8, color: '#c9a84c', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.14em', fontWeight: 700, flexShrink: 0 }}>
+          <span style={{ fontSize: 16, color: '#f0e8d4', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.14em', fontWeight: 600, flexShrink: 0 }}>
             CASE {currentLevel + 1} / 3
           </span>
           <ProgressBar current={currentLevel} total={3} />
           <div style={{ height: 1, flex: 1, background: 'rgba(200,168,76,0.15)' }} />
-          <span style={{ fontSize: 8, color: 'rgba(200,168,76,0.7)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em', flexShrink: 0 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'rgba(200,168,76,0.7)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em', flexShrink: 0 }}>
             {results.length > 0 ? Math.round((results.filter(r => r.correct).length / results.length) * 100) : 0}% CAPTURED
           </span>
         </div>
@@ -1889,30 +2031,42 @@ export function ThiefDetectiveGame() {
             >
               <div style={{ position: 'relative', overflow: 'hidden' }}>
                 <ImageWithFallback
-                  src={pexelsImages[level.id] ?? level.imageUrl}
+                  src={level.imageUrl}
                   alt={`Case ${currentLevel + 1}`}
                   className="w-full object-cover"
                   style={{ height: 290, display: 'block' }}
                 />
-                {!answered && (
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3 }}>
-                    <div style={{ height: '100%', background: isCritical ? '#ef4444' : isUrgent ? '#f59e0b' : '#22c55e', width: `${(timeLeft / timerTotal) * 100}%`, transition: 'width 0.9s linear' }} />
-                  </div>
-                )}
+                {!answered && (() => {
+                  const pct = timeLeft / timerTotal;
+                  const barColor = pct > 0.6 ? '#22c55e' : pct > 0.3 ? '#f59e0b' : '#ef4444';
+                  const shouldPulse = pct < 0.15;
+                  return (
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 10, background: 'rgba(0,0,0,0.4)', borderRadius: 5 }}>
+                      <div style={{
+                        height: '100%',
+                        background: barColor,
+                        width: `${pct * 100}%`,
+                        transition: 'width 1s linear, background-color 0.5s ease',
+                        borderRadius: 5,
+                        animation: shouldPulse ? 'timer-bar-pulse 0.5s ease-in-out infinite' : 'none',
+                      }} />
+                    </div>
+                  );
+                })()}
                 {/* RED CLASSIFIED stamp */}
-                <div style={{ position: 'absolute', top: 8, right: 8, border: '2px solid rgba(180,20,20,0.85)', borderRadius: 2, padding: '2px 6px', color: 'rgba(180,20,20,0.85)', fontFamily: "'Courier New', monospace", fontSize: 8, fontWeight: 900, letterSpacing: '0.2em', transform: 'rotate(8deg)', background: 'rgba(255,255,255,0.1)' }}>
+                <div style={{ position: 'absolute', top: 8, right: 8, border: '2px solid rgba(180,20,20,0.85)', borderRadius: 2, padding: '2px 6px', color: 'rgba(180,20,20,0.85)', fontFamily: "'Courier New', monospace", fontSize: 13, fontWeight: 900, letterSpacing: '0.2em', transform: 'rotate(8deg)', background: 'rgba(255,255,255,0.1)' }}>
                   CLASSIFIED
                 </div>
                 <div style={{ position: 'absolute', top: 8, left: 8 }}>
                   <DifficultyBadge d={diff} />
                 </div>
-                <div style={{ position: 'absolute', bottom: 0, right: 8, background: 'rgba(0,0,0,0.45)', borderRadius: '3px 3px 0 0', padding: '2px 5px', fontSize: 8, color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 2 }}>
+                <div style={{ position: 'absolute', bottom: 0, right: 8, background: 'rgba(0,0,0,0.45)', borderRadius: '3px 3px 0 0', padding: '2px 5px', fontSize: 13, color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Search style={{ width: 7, height: 7 }} /> zoom
                 </div>
               </div>
               {/* Polaroid label */}
               <div style={{ paddingTop: 6, textAlign: 'center' }}>
-                <span style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: 10, color: '#3a2a1a', letterSpacing: '0.12em', fontWeight: 600 }}>
+                <span style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: 13, color: '#3a2a1a', letterSpacing: '0.12em', fontWeight: 600 }}>
                   CASE #{String(currentLevel + 1).padStart(3, '0')} — CRIME SCENE
                 </span>
               </div>
@@ -1944,14 +2098,14 @@ export function ThiefDetectiveGame() {
               }}>
                 {/* Left: source */}
                 <div>
-                  <div style={{ fontSize: 8, letterSpacing: '0.22em', color: '#e8c878', fontWeight: 900, lineHeight: 1.2 }}>INTERPOL SECURE LINE</div>
-                  <div style={{ fontSize: 7, color: 'rgba(220,185,100,0.6)', letterSpacing: '0.1em', marginTop: 1 }}>FROM: FIELD OPERATIVE</div>
+                  <div style={{ fontSize: 15, letterSpacing: '0.12em', color: '#e8c878', fontWeight: 700, lineHeight: 1.2 }}>INTERPOL SECURE LINE</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(220,185,100,0.6)', letterSpacing: '0.1em', marginTop: 1 }}>FROM: FIELD OPERATIVE</div>
                 </div>
                 {/* Right: priority + animated signal dot */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 7, color: '#e8a060', letterSpacing: '0.12em', fontWeight: 700 }}>PRIORITY: URGENT</div>
-                    <div style={{ fontSize: 7, color: 'rgba(220,185,100,0.55)', letterSpacing: '0.1em' }}>INTERCEPTED</div>
+                    <div style={{ fontSize: 13, color: '#e8a060', letterSpacing: '0.12em', fontWeight: 700 }}>PRIORITY: URGENT</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: 'rgba(220,185,100,0.55)', letterSpacing: '0.1em' }}>INTERCEPTED</div>
                   </div>
                   {/* Live signal dot */}
                   <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e', animation: 'tw-blink 1.2s step-end infinite', flexShrink: 0 }} />
@@ -1969,7 +2123,7 @@ export function ThiefDetectiveGame() {
                   borderRadius: 3,
                   padding: '3px 9px',
                   fontFamily: "'Courier New', Courier, monospace",
-                  fontSize: 9, fontWeight: 900, letterSpacing: '0.22em',
+                  fontSize: 13, fontWeight: 900, letterSpacing: '0.22em',
                   color: 'rgba(140,20,20,0.72)',
                   background: 'rgba(140,20,20,0.05)',
                   userSelect: 'none',
@@ -1986,7 +2140,7 @@ export function ThiefDetectiveGame() {
               {/* Body padding wrapper */}
               <div style={{ padding: '0 13px' }}>
               {/* Telegram body — teletype printing effect */}
-              <p style={{ margin: 0, fontSize: 12, lineHeight: 1.75, letterSpacing: '0.03em', color: '#1a1008', fontFamily: "'Courier New', Courier, monospace", minHeight: '4.5em' }}>
+              <p style={{ margin: 0, fontSize: 15, lineHeight: 1.5, letterSpacing: '0.03em', color: '#1a1008', fontFamily: "'Courier New', Courier, monospace", minHeight: '4.5em' }}>
                 <TypewriterText
                   key={level.id}
                   speed={30}
@@ -2006,7 +2160,7 @@ export function ThiefDetectiveGame() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 8, color: 'rgba(40,25,8,0.7)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(40,25,8,0.7)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.14em', textTransform: 'uppercase' }}>
                   — Intel · {revealedClues.length}/{maxClues} decrypted —
                 </span>
                 {revealedClues.length < maxClues && !answered && (
@@ -2014,12 +2168,17 @@ export function ThiefDetectiveGame() {
                     onClick={revealNextClue}
                     whileHover={{ scale: 1.06, backgroundColor: 'rgba(40,25,8,0.14)' }}
                     whileTap={{ scale: 0.93 }}
-                    style={{ padding: '4px 10px', borderRadius: 2, border: '1.5px solid rgba(40,25,8,0.45)', background: 'rgba(40,25,8,0.06)', color: '#1a0e04', fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.06em' }}
+                    style={{ padding: '10px 20px', borderRadius: 4, border: 'none', background: '#5a1a08', color: '#f0e8d4', fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.06em' }}
                   >
                     ▸ Decrypt clue −{calcPoints(revealedClues.length) - calcPoints(revealedClues.length + 1)}pts
                   </motion.button>
                 )}
               </div>
+              {revealedClues.length < maxClues && !answered && (
+                <div style={{ fontSize: 13, color: 'rgba(200,168,130,0.6)', fontStyle: 'italic', textAlign: 'center', marginTop: 4 }}>
+                  Fewer clues used = higher score
+                </div>
+              )}
 
               {level.clues.map((clue, i) => {
                 const revealed = revealedClues.includes(i);
@@ -2054,7 +2213,7 @@ export function ThiefDetectiveGame() {
                         {/* Newspaper clipping label */}
                         <div style={{
                           fontFamily: "'Courier New', Courier, monospace",
-                          fontSize: 7, fontWeight: 900, letterSpacing: '0.25em',
+                          fontSize: 13, fontWeight: 900, letterSpacing: '0.25em',
                           color: 'rgba(26,14,4,0.5)',
                           textTransform: 'uppercase',
                           marginBottom: 6,
@@ -2068,7 +2227,7 @@ export function ThiefDetectiveGame() {
                         {/* Body — Courier New typewriter style */}
                         <span style={{
                           fontFamily: "'Courier New', Courier, monospace",
-                          fontSize: 12.5,
+                          fontSize: 16,
                           lineHeight: 1.72,
                           color: '#1a0e04',
                           letterSpacing: '0.02em',
@@ -2076,7 +2235,7 @@ export function ThiefDetectiveGame() {
                       </motion.div>
                     ) : diffLocked ? (
                       <div style={{ padding: '6px 10px', marginBottom: 6, opacity: 0.4, border: '1px dashed rgba(40,25,8,0.2)', borderRadius: 2 }}>
-                        <span style={{ fontSize: 10, color: 'rgba(40,25,8,0.5)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.06em' }}>
+                        <span style={{ fontSize: 14, color: 'rgba(40,25,8,0.5)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.06em' }}>
                           Clue {i + 1} — not available at this difficulty
                         </span>
                       </div>
@@ -2085,7 +2244,7 @@ export function ThiefDetectiveGame() {
                         onClick={() => { if (!answered) revealNextClue(); }}
                         style={{ padding: '8px 11px', marginBottom: 6, borderRadius: 2, border: '1px dashed rgba(40,25,8,0.22)', background: 'rgba(40,25,8,0.04)', display: 'flex', alignItems: 'center', gap: 8, cursor: answered ? 'default' : 'pointer' }}>
                         <Lock style={{ width: 10, height: 10, color: 'rgba(40,25,8,0.4)', flexShrink: 0 }} />
-                        <span style={{ fontSize: 10, color: 'rgba(40,25,8,0.45)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.06em' }}>Clue {i + 1} — sealed</span>
+                        <span style={{ fontSize: 14, color: 'rgba(40,25,8,0.45)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.06em' }}>Clue {i + 1} — sealed</span>
                       </div>
                     )}
                   </div>
@@ -2094,16 +2253,16 @@ export function ThiefDetectiveGame() {
 
               {!answered && (
                 <div style={{ marginTop: 4, paddingTop: 8, borderTop: '1px solid rgba(40,25,8,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 8, color: 'rgba(40,25,8,0.6)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'rgba(40,25,8,0.6)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em' }}>
                     {revealedClues.length === 0 ? '★ CLEAN CAPTURE BONUS' : 'REWARD IF CORRECT'}
                   </span>
-                  <span style={{ fontSize: 11, color: '#3a1e06', fontWeight: 700, fontFamily: "'Oswald', sans-serif", letterSpacing: '0.06em' }}>+{calcPoints(revealedClues.length)} PTS</span>
+                  <span style={{ fontSize: 14, color: '#3a1e06', fontWeight: 700, fontFamily: "'Oswald', sans-serif", letterSpacing: '0.06em' }}>+{calcPoints(revealedClues.length)} PTS</span>
                 </div>
               )}
               {answered && results[results.length - 1]?.timedOut && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   style={{ marginTop: 6, paddingTop: 8, borderTop: '1px solid rgba(40,25,8,0.1)' }}>
-                  <p style={{ fontSize: 9, color: 'rgba(140,30,20,0.75)', lineHeight: 1.6, margin: 0, fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  <p style={{ fontSize: 13, color: 'rgba(140,30,20,0.75)', lineHeight: 1.6, margin: 0, fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                     ▸ Clock ran out — Phantom last seen in {level.country}
                   </p>
                 </motion.div>
@@ -2152,31 +2311,31 @@ export function ThiefDetectiveGame() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   {selectedCountry ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: "'Courier New', Courier, monospace", color: '#1a0e04', letterSpacing: '0.04em' }}>
-                      <MapPin style={{ width: 13, height: 13, color: '#8b3a1c', flexShrink: 0 }} />
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 18, fontWeight: 700, fontFamily: "'Courier New', Courier, monospace", color: '#1a0e04', letterSpacing: '0.04em' }}>
+                      <MapPin style={{ width: 18, height: 18, color: '#1a0e04', flexShrink: 0 }} />
                       SUSPECT LOCATED: <strong>{getDisplayName(selectedCountry)}</strong>
                     </span>
                   ) : (
-                    <span style={{ fontSize: 9, color: 'rgba(40,25,8,0.65)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: 13, color: 'rgba(40,25,8,0.65)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                       ▸ Mark suspect location on the map
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: 8, color: 'rgba(40,25,8,0.5)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.08em' }}>
+                <div style={{ fontSize: 13, color: 'rgba(40,25,8,0.5)', fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.08em' }}>
                   DRAG · ZOOM
                 </div>
                 <button
                   onClick={handleSubmit}
                   disabled={!selectedCountry}
                   style={{
-                    padding: '9px 22px', borderRadius: 2, fontWeight: 700, fontSize: 12,
+                    padding: '14px 32px', borderRadius: 6, fontWeight: 800, fontSize: 18,
                     background: selectedCountry ? '#5a1a08' : 'rgba(40,25,8,0.08)',
-                    color: selectedCountry ? '#f0e8d8' : 'rgba(40,25,8,0.25)',
-                    border: selectedCountry ? '1px solid rgba(80,30,10,0.6)' : '1px solid rgba(40,25,8,0.12)',
+                    color: selectedCountry ? '#f0e8d4' : 'rgba(40,25,8,0.25)',
+                    border: selectedCountry ? '2px solid rgba(200,168,130,0.5)' : '1px solid rgba(40,25,8,0.12)',
                     cursor: selectedCountry ? 'pointer' : 'not-allowed',
                     display: 'flex', alignItems: 'center', gap: 6,
-                    fontFamily: "'Oswald', sans-serif", letterSpacing: '0.1em',
-                    boxShadow: selectedCountry ? 'inset 0 1px 0 rgba(255,200,150,0.15), 0 2px 6px rgba(20,8,2,0.3)' : 'none',
+                    fontFamily: "'Oswald', sans-serif", letterSpacing: '0.08em',
+                    boxShadow: selectedCountry ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
                     transition: 'all 0.2s', flexShrink: 0,
                   }}
                 >
@@ -2196,14 +2355,14 @@ export function ThiefDetectiveGame() {
                   border: `1px solid ${isCorrect ? 'rgba(40,90,20,0.3)' : 'rgba(120,30,20,0.3)'}`,
                   borderLeft: `4px solid ${isCorrect ? 'rgba(40,100,20,0.7)' : 'rgba(140,30,20,0.7)'}`,
                   borderRadius: '1px 3px 3px 1px',
-                  padding: '8px 12px',
+                  padding: '12px 24px', minHeight: 60,
                   display: 'flex', alignItems: 'center', gap: 12,
                 }}>
                   <div style={{
                     flexShrink: 0, border: `2px solid ${isCorrect ? 'rgba(40,100,20,0.65)' : 'rgba(140,30,20,0.65)'}`,
                     borderRadius: 2, padding: '3px 5px',
                     fontFamily: "'Courier New', Courier, monospace",
-                    fontSize: 8, fontWeight: 900, letterSpacing: '0.12em',
+                    fontSize: 16, fontWeight: 800, letterSpacing: '0.12em',
                     color: isCorrect ? 'rgba(30,90,15,0.85)' : 'rgba(140,30,20,0.85)',
                     transform: isCorrect ? 'rotate(-4deg)' : 'rotate(-3deg)',
                     lineHeight: 1.2, textAlign: 'center' as const, minWidth: 38, whiteSpace: 'pre' as const,
@@ -2211,10 +2370,10 @@ export function ThiefDetectiveGame() {
                     {isCorrect ? 'CASE\nCLOSED' : results[results.length-1]?.timedOut ? 'TIME\nEXP.' : 'MISS\nFIRE'}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2, fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.04em', color: isCorrect ? '#1a4a08' : '#6a1a0a' }}>
+                    <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 2, fontFamily: "'Courier New', Courier, monospace", letterSpacing: '0.04em', color: isCorrect ? '#1a4a08' : '#6a1a0a' }}>
                       {isCorrect ? 'Phantom apprehended.' : results[results.length-1]?.timedOut ? 'Time expired — Phantom fled.' : 'Wrong location — Phantom escaped.'}
                     </div>
-                    <p style={{ fontSize: 10, color: 'rgba(40,25,8,0.55)', margin: 0, fontFamily: "'Georgia', serif" }}>
+                    <p style={{ fontSize: 15, color: 'rgba(40,25,8,0.55)', margin: 0, fontFamily: "'Georgia', serif" }}>
                       {isCorrect
                         ? `${level.country} confirmed. +${earnedPoints} pts`
                         : results[results.length-1]?.timedOut
@@ -2227,7 +2386,7 @@ export function ThiefDetectiveGame() {
                 <button
                   onClick={openCultureCard}
                   style={{
-                    padding: '9px 18px', borderRadius: 2, fontWeight: 700, fontSize: 11,
+                    padding: '10px 20px', borderRadius: 2, fontWeight: 700, fontSize: 15,
                     background: '#2a1a06',
                     color: '#f0e8d4',
                     border: '1px solid rgba(60,35,8,0.7)',
@@ -2247,12 +2406,23 @@ export function ThiefDetectiveGame() {
         </div>
       </div>
 
+      {/* ── Suspect Briefing Modal ── */}
+      <AnimatePresence>
+        {showSuspectBriefing && level && SUSPECTS[level.id] && (
+          <SuspectBriefing
+            suspect={SUSPECTS[level.id]}
+            onBegin={() => setShowSuspectBriefing(false)}
+            onBack={() => { setShowSuspectBriefing(false); setGameState("difficulty"); }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* ── Cultural Knowledge Card Modal ── */}
       <AnimatePresence>
         {showCultureCard && (
           <CultureCard
             level={level}
-            resolvedImageUrl={pexelsImages[level.id] ?? level.imageUrl}
+            resolvedImageUrl={level.imageUrl}
             isCorrect={isCorrect}
             points={earnedPoints}
             onContinue={nextLevel}
@@ -2275,7 +2445,7 @@ export function ThiefDetectiveGame() {
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.85, opacity: 0 }}
-              src={pexelsImages[level.id] ?? level.imageUrl}
+              src={level.imageUrl}
               alt="Crime scene"
               style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 12, boxShadow: '0 0 60px rgba(0,0,0,0.6)' }}
               onClick={e => e.stopPropagation()}

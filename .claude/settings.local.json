@@ -34,7 +34,9 @@
       "Bash(curl -sL \"https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=800\" -o /tmp/morocco1.jpg)",
       "Bash(curl -sL \"https://images.unsplash.com/photo-1553697388-94e804e2f0f6?w=800\" -o /tmp/morocco2.jpg)",
       "Bash(node_modules/.bin/tsc --noEmit)",
-      "Bash(node_modules/.bin/vite build:*)"
+      "Bash(node_modules/.bin/vite build:*)",
+      "Bash(npx next:*)",
+      "Bash(node_modules/.bin/next build:*)"
     ]
   }
 }

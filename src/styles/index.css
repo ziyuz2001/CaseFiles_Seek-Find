@@ -17,6 +17,12 @@
   animation: tw-blink 0.65s step-end infinite;
 }
 
+/* Timer bar pulse (below 15% time remaining) */
+@keyframes timer-bar-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 /* Detective newspaper background — aged newsprint yellow */
 .detective-bg {
   background-color: #ddd4b0;
