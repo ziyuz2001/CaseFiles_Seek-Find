@@ -73,7 +73,7 @@ npm run dev
 
 Then open **http://localhost:5173** in your browser.
 
-Alternatively, double-click **`启动游戏.bat`** (Windows) to start the server and open the browser automatically.
+Alternatively, double-click **startgame.bat`** (Windows) to start the server and open the browser automatically.
 
 ### Environment Variables
 
