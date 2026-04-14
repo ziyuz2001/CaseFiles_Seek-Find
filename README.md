@@ -123,6 +123,4 @@ src/
 
 ---
 
-## Original Design
 
-The original Figma design is available at [figma.com](https://www.figma.com/design/0wHzLvZekTDPaMGfZ81Z2Q/).
